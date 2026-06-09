@@ -14,6 +14,13 @@ The wrapper requires the following tools to be installed:
 The wrapper is implemented as a shell function named `agy-safe` (with a legacy alias `gemini-safe`) inside `~/.zshrc`. 
 
 ## Security Checks
+
+> [!WARNING]
+> Use this wrapper at your own risk. It can help reduce the chance of accidentally exposing secrets, but it is not a complete security boundary and does not guarantee safe usage of Gemini CLI.
+>
+> Security depends on careful use of the tool and basic security hygiene. Always review the directory in which the CLI is started, keep credentials and sensitive files outside project directories where possible, use least-privilege credentials, review requested permissions, and rotate any credential that may have been exposed.
+>
+> Secret scanning and sandboxing reduce risk, but they do not replace responsible usage, access controls, secure credential storage, and manual review.
 Before launching the CLI, the wrapper performs the following checks:
 1. **Git Context Check**: Verifies if the current folder is a git repository (`git rev-parse --is-inside-work-tree`). If not, it prompts the user to confirm before proceeding.
 2. **Secret Scan (Working Directory)**: Runs `gitleaks dir . --redact --verbose --timeout 120` to detect exposed secrets in the current directory.
@@ -53,7 +60,7 @@ AGY_SAFE_ALLOW_RISK=1 agy-safe
 
 ## Troubleshooting
 - **`gitleaks is not installed`**: The wrapper will prompt to install it via `brew`. If `brew` is missing, you must install `gitleaks` manually.
-- **`Possible secrets found`**: The wrapper halts execution to prevent secret leaks. Review the findings from `gitleaks`. If you are certain it's a false positive, you can override using the `AGY_SAFE_ALLOW_RISK=1` environment variable.
+- **`Possible secrets found`**: The wrapper halts execution to help reduce risk. Review the findings from `gitleaks`. If you are certain it's a false positive, you can override using the `AGY_SAFE_ALLOW_RISK=1` environment variable.
 - **`agy CLI is not installed`**: Ensure the Antigravity CLI is installed and available in your shell's `$PATH`.
 
 ## Updating the Wrapper

@@ -44,23 +44,34 @@ agy-safe() {
     esac
   fi
 
+  local findings_overridden=0
+
   echo "🔍 Running gitleaks working directory scan..."
   gitleaks dir . \
     --redact \
     --verbose \
-    --timeout 120
+    --timeout 120 \
+    --exit-code 3
 
-  if [ $? -ne 0 ]; then
+  local gl_code=$?
+
+  if [ $gl_code -eq 3 ]; then
     echo ""
-    echo "🚨 Possible secrets found in working directory, or gitleaks scan failed."
+    echo "🚨 Possible secrets found in working directory."
     echo "🛑 Review findings before running Antigravity here."
 
     if [ "$AGY_SAFE_ALLOW_RISK" = "1" ] || [ "$GEMINI_SAFE_ALLOW_RISK" = "1" ]; then
       echo "⚠️  AGY_SAFE_ALLOW_RISK=1 is set. Continuing despite findings."
+      findings_overridden=1
     else
       echo "ℹ️  To override manually, run: AGY_SAFE_ALLOW_RISK=1 agy-safe"
       return 1
     fi
+  elif [ $gl_code -ne 0 ]; then
+    echo ""
+    echo "🚨 Gitleaks working directory scan failed (exit code $gl_code)."
+    echo "🛑 Aborting to prevent unsafe execution."
+    return 1
   fi
 
   if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
@@ -68,23 +79,36 @@ agy-safe() {
     gitleaks git . \
       --redact \
       --verbose \
-      --timeout 120
+      --timeout 120 \
+      --exit-code 3
 
-    if [ $? -ne 0 ]; then
+    local gl_git_code=$?
+
+    if [ $gl_git_code -eq 3 ]; then
       echo ""
-      echo "🚨 Possible secrets found in git history, or gitleaks scan failed."
+      echo "🚨 Possible secrets found in git history."
       echo "🛑 Review findings before running Antigravity here."
 
       if [ "$AGY_SAFE_ALLOW_RISK" = "1" ] || [ "$GEMINI_SAFE_ALLOW_RISK" = "1" ]; then
         echo "⚠️  AGY_SAFE_ALLOW_RISK=1 is set. Continuing despite findings."
+        findings_overridden=1
       else
         echo "ℹ️  To override manually, run: AGY_SAFE_ALLOW_RISK=1 agy-safe"
         return 1
       fi
+    elif [ $gl_git_code -ne 0 ]; then
+      echo ""
+      echo "🚨 Gitleaks git history scan failed (exit code $gl_git_code)."
+      echo "🛑 Aborting to prevent unsafe execution."
+      return 1
     fi
   fi
 
-  echo "✅ No secrets found by gitleaks."
+  if [ "$findings_overridden" -eq 1 ]; then
+    echo "WARNING: Gitleaks findings were detected and manually overridden."
+  else
+    echo "✅ No secrets found by gitleaks."
+  fi
 
   # 3. Check Antigravity CLI version via brew
   if command -v brew >/dev/null 2>&1; then
