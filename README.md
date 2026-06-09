@@ -3,12 +3,19 @@
 ## Purpose
 This repository documents and maintains a security wrapper function (`agy-safe`) for the Antigravity (Gemini) CLI. The wrapper runs essential safety checks before starting the agent in the current folder. Its goal is to reduce the accidental exposure of secrets or sensitive files to an AI coding agent by enforcing git context checks, secret scanning, and running the agent in sandbox mode.
 
-## Installation Requirements
-The wrapper requires the following tools to be installed:
-- `git`: For repository context and history checks.
-- `gitleaks`: For scanning the working directory and git history for secrets.
-- `brew`: (macOS/Homebrew) For automatically installing `gitleaks` and updating `antigravity-cli`.
-- `agy`: The Antigravity CLI executable.
+## Dependencies
+
+| Tool | Required | Purpose | Installation |
+|---|---:|---|---|
+| `zsh` | Yes | Runs the `agy-safe` shell function | Included with macOS |
+| `git` | Yes | Repository context, status and history checks | `brew install git` |
+| `gitleaks` | Yes | Scans the working directory and Git history for potential secrets | `brew install gitleaks` |
+| `brew` | Yes | Installs Gitleaks and checks for CLI updates | Install Homebrew separately |
+| `agy` | Yes | Starts the Antigravity CLI in sandbox mode | Install Antigravity CLI and ensure `agy` is available in `$PATH` |
+
+```bash
+command -v zsh git gitleaks brew agy
+```
 
 ## Existing `.zshrc` Configuration
 The wrapper is implemented as a shell function named `agy-safe` (with a legacy alias `gemini-safe`) inside `~/.zshrc`. 
@@ -28,6 +35,25 @@ Before launching the CLI, the wrapper performs the following checks:
 4. **CLI Update Check**: Uses `brew outdated` to check if `antigravity-cli` needs an update, prompting the user to upgrade if a newer version is available.
 5. **Context Summary**: Prints the current working directory (`pwd`) and git status (`git status --short`).
 6. **Sandbox Execution**: Launches the CLI using the `--sandbox` flag (`agy --sandbox "$@"`).
+
+## How It Works
+
+```text
+agy-safe
+   |
+   +-- Check Git repository context
+   +-- Scan the working directory with Gitleaks
+   +-- Scan Git history with Gitleaks
+   +-- Check for an Antigravity CLI update
+   +-- Display the current directory and Git status
+   +-- Start `agy --sandbox`
+```
+
+## Demo
+
+![agy-safe pre-flight checks](assets/agy-safe-demo.png)
+
+The screenshot shows an example of the wrapper completing its pre-flight checks before starting Antigravity CLI.
 
 ## Usage Examples
 
@@ -51,12 +77,6 @@ Override secret scan findings to force execution:
 AGY_SAFE_ALLOW_RISK=1 agy-safe
 ```
 *(Alternatively, `GEMINI_SAFE_ALLOW_RISK=1` can be used).*
-
-## Dependencies
-- `gitleaks`
-- `brew`
-- `git`
-- `agy`
 
 ## Troubleshooting
 - **`gitleaks is not installed`**: The wrapper will prompt to install it via `brew`. If `brew` is missing, you must install `gitleaks` manually.
