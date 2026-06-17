@@ -1,11 +1,40 @@
-agy-safe() {
+_ai_cli_safe() {
   setopt localoptions no_nomatch
 
-  echo "🛡️  Antigravity safe pre-check"
+  local agent_key="$1"
+  shift
+
+  local agent_name cli_command cli_update_cask risk_env launch_note
+  local -a launch_cmd
+
+  case "$agent_key" in
+    codex)
+      agent_name="Codex"
+      cli_command="codex"
+      cli_update_cask=""
+      risk_env="CODEX_SAFE_ALLOW_RISK"
+      launch_cmd=(codex --sandbox workspace-write)
+      launch_note="Codex workspace-write sandbox mode"
+      ;;
+    agy|antigravity)
+      agent_name="Antigravity"
+      cli_command="agy"
+      cli_update_cask="antigravity-cli"
+      risk_env="AGY_SAFE_ALLOW_RISK"
+      launch_cmd=(agy --sandbox)
+      launch_note="Antigravity sandbox mode"
+      ;;
+    *)
+      echo "🛑 Unknown safe CLI target: $agent_key"
+      return 1
+      ;;
+  esac
+
+  echo "🛡️  $agent_name safe pre-check"
   echo ""
   echo "ℹ️  Purpose:"
-  echo "ℹ️  This wrapper runs safety checks before starting Antigravity over the current folder."
-  echo "ℹ️  It checks git context, possible secrets, git history, and Antigravity sandbox mode."
+  echo "ℹ️  This wrapper runs safety checks before starting $agent_name over the current folder."
+  echo "ℹ️  It checks git context, possible secrets, git history, and $launch_note."
   echo "ℹ️  Goal: reduce accidental exposure of secrets or sensitive files to an AI coding agent."
   echo ""
 
@@ -38,7 +67,7 @@ agy-safe() {
         HOMEBREW_NO_AUTO_UPDATE=1 brew install gitleaks || return 1
         ;;
       *)
-        echo "🛑 Aborted. Secret scan is required before running Antigravity sandbox."
+        echo "🛑 Aborted. Secret scan is required before running $agent_name sandbox."
         return 1
         ;;
     esac
@@ -58,13 +87,13 @@ agy-safe() {
   if [ $gl_code -eq 3 ]; then
     echo ""
     echo "🚨 Possible secrets found in working directory."
-    echo "🛑 Review findings before running Antigravity here."
+    echo "🛑 Review findings before running $agent_name here."
 
-    if [ "$AGY_SAFE_ALLOW_RISK" = "1" ] || [ "$GEMINI_SAFE_ALLOW_RISK" = "1" ]; then
-      echo "⚠️  AGY_SAFE_ALLOW_RISK=1 is set. Continuing despite findings."
+    if [ "${(P)risk_env}" = "1" ] || [ "$AGY_SAFE_ALLOW_RISK" = "1" ] || [ "$GEMINI_SAFE_ALLOW_RISK" = "1" ]; then
+      echo "⚠️  $risk_env=1 is set. Continuing despite findings."
       findings_overridden=1
     else
-      echo "ℹ️  To override manually, run: AGY_SAFE_ALLOW_RISK=1 agy-safe"
+      echo "ℹ️  To override manually, run: $risk_env=1 ${agent_key}-safe"
       return 1
     fi
   elif [ $gl_code -ne 0 ]; then
@@ -87,13 +116,13 @@ agy-safe() {
     if [ $gl_git_code -eq 3 ]; then
       echo ""
       echo "🚨 Possible secrets found in git history."
-      echo "🛑 Review findings before running Antigravity here."
+      echo "🛑 Review findings before running $agent_name here."
 
-      if [ "$AGY_SAFE_ALLOW_RISK" = "1" ] || [ "$GEMINI_SAFE_ALLOW_RISK" = "1" ]; then
-        echo "⚠️  AGY_SAFE_ALLOW_RISK=1 is set. Continuing despite findings."
+      if [ "${(P)risk_env}" = "1" ] || [ "$AGY_SAFE_ALLOW_RISK" = "1" ] || [ "$GEMINI_SAFE_ALLOW_RISK" = "1" ]; then
+        echo "⚠️  $risk_env=1 is set. Continuing despite findings."
         findings_overridden=1
       else
-        echo "ℹ️  To override manually, run: AGY_SAFE_ALLOW_RISK=1 agy-safe"
+        echo "ℹ️  To override manually, run: $risk_env=1 ${agent_key}-safe"
         return 1
       fi
     elif [ $gl_git_code -ne 0 ]; then
@@ -110,30 +139,30 @@ agy-safe() {
     echo "✅ No secrets found by gitleaks."
   fi
 
-  # 3. Check Antigravity CLI version via brew
-  if command -v brew >/dev/null 2>&1; then
-    echo "🔄 Checking antigravity-cli updates via brew..."
+  # 3. Check CLI version via brew when a cask is configured.
+  if [ -n "$cli_update_cask" ] && command -v brew >/dev/null 2>&1; then
+    echo "🔄 Checking $cli_update_cask updates via brew..."
 
-    outdated="$(HOMEBREW_NO_AUTO_UPDATE=1 brew outdated --cask --quiet antigravity-cli 2>/dev/null)"
+    outdated="$(HOMEBREW_NO_AUTO_UPDATE=1 brew outdated --cask --quiet "$cli_update_cask" 2>/dev/null)"
 
     if [ -n "$outdated" ]; then
-      echo "⬆️  New antigravity-cli version available."
-      printf "❓ Upgrade antigravity-cli now? [y/N]: "
+      echo "⬆️  New $cli_update_cask version available."
+      printf "❓ Upgrade $cli_update_cask now? [y/N]: "
       read -r answer
       case "$answer" in
         y|Y|yes|YES)
-          echo "📦 Upgrading antigravity-cli..."
-          HOMEBREW_NO_AUTO_UPDATE=1 brew upgrade --cask antigravity-cli || return 1
+          echo "📦 Upgrading $cli_update_cask..."
+          HOMEBREW_NO_AUTO_UPDATE=1 brew upgrade --cask "$cli_update_cask" || return 1
           ;;
         *)
-          echo "⏭️  Skipping antigravity-cli upgrade."
+          echo "⏭️  Skipping $cli_update_cask upgrade."
           ;;
       esac
     else
-      echo "✅ antigravity-cli is up to date."
+      echo "✅ $cli_update_cask is up to date."
     fi
-  else
-    echo "⚠️  brew not found, skipping antigravity-cli update check."
+  elif [ -n "$cli_update_cask" ]; then
+    echo "⚠️  brew not found, skipping $cli_update_cask update check."
   fi
 
   # 4. Extra safety info
@@ -147,18 +176,26 @@ agy-safe() {
     git status --short
   fi
 
-  if ! command -v agy >/dev/null 2>&1; then
+  if ! command -v "$cli_command" >/dev/null 2>&1; then
     echo ""
-    echo "🛑 agy CLI is not installed or not in PATH."
+    echo "🛑 $cli_command CLI is not installed or not in PATH."
     return 1
   fi
 
   echo ""
-  echo "🚀 Starting Antigravity in sandbox mode..."
-  echo "ℹ️  If folder is untrusted, use /permissions inside Antigravity."
+  echo "🚀 Starting $agent_name in sandbox mode..."
+  echo "ℹ️  If folder is untrusted, review permissions inside $agent_name."
   echo ""
 
-  agy --sandbox "$@"
+  "${launch_cmd[@]}" "$@"
+}
+
+agy-safe() {
+  _ai_cli_safe agy "$@"
+}
+
+codex-safe() {
+  _ai_cli_safe codex "$@"
 }
 
 gemini-safe() {

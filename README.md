@@ -1,24 +1,25 @@
-# Antigravity (Gemini) CLI Security Wrapper
+# Antigravity (Gemini) and Codex CLI Security Wrapper
 
 ## Purpose
-This repository documents and maintains a security wrapper function (`agy-safe`) for the Antigravity (Gemini) CLI. The wrapper runs essential safety checks before starting the agent in the current folder. Its goal is to reduce the accidental exposure of secrets or sensitive files to an AI coding agent by enforcing git context checks, secret scanning, and running the agent in sandbox mode.
+This repository documents and maintains security wrapper functions (`agy-safe` and `codex-safe`) for the Antigravity (Gemini) and Codex CLIs. The wrapper runs essential safety checks before starting the agent in the current folder. Its goal is to reduce the accidental exposure of secrets or sensitive files to an AI coding agent by enforcing git context checks, secret scanning, and running the agent in sandbox mode.
 
 ## Dependencies
 
 | Tool | Required | Purpose | Installation |
 |---|---:|---|---|
-| `zsh` | Yes | Runs the `agy-safe` shell function | Included with macOS |
+| `zsh` | Yes | Runs the `agy-safe` and `codex-safe` shell functions | Included with macOS |
 | `git` | Yes | Repository context, status and history checks | `brew install git` |
 | `gitleaks` | Yes | Scans the working directory and Git history for potential secrets | `brew install gitleaks` |
 | `brew` | Yes | Installs Gitleaks and checks for CLI updates | Install Homebrew separately |
 | `agy` | Yes | Starts the Antigravity CLI in sandbox mode | Install Antigravity CLI and ensure `agy` is available in `$PATH` |
+| `codex` | Optional | Starts the Codex CLI in sandbox mode | Install Codex CLI and ensure `codex` is available in `$PATH` |
 
 ```bash
-command -v zsh git gitleaks brew agy
+command -v zsh git gitleaks brew agy codex
 ```
 
 ## Existing `.zshrc` Configuration
-The wrapper is implemented as a shell function named `agy-safe` (with a legacy alias `gemini-safe`) inside `~/.zshrc`. 
+The wrapper is implemented as shell functions named `agy-safe` and `codex-safe` (with a legacy alias `gemini-safe`) inside `~/.zshrc`. 
 
 ## Security Checks
 
@@ -34,19 +35,19 @@ Before launching the CLI, the wrapper performs the following checks:
 3. **Secret Scan (Git History)**: Runs `gitleaks git . --redact --verbose --timeout 120` to detect exposed secrets in the repository's commit history.
 4. **CLI Update Check**: Uses `brew outdated` to check if `antigravity-cli` needs an update, prompting the user to upgrade if a newer version is available.
 5. **Context Summary**: Prints the current working directory (`pwd`) and git status (`git status --short`).
-6. **Sandbox Execution**: Launches the CLI using the `--sandbox` flag (`agy --sandbox "$@"`).
+6. **Sandbox Execution**: Launches the CLI using sandbox mode (`agy --sandbox "$@"` or `codex --sandbox workspace-write "$@"`).
 
 ## How It Works
 
 ```text
-agy-safe
+agy-safe / codex-safe
    |
    +-- Check Git repository context
    +-- Scan the working directory with Gitleaks
    +-- Scan Git history with Gitleaks
-   +-- Check for an Antigravity CLI update
+   +-- Check for an Antigravity CLI update when using `agy-safe`
    +-- Display the current directory and Git status
-   +-- Start `agy --sandbox`
+   +-- Start the selected CLI in sandbox mode
 ```
 
 ## Demo
@@ -62,9 +63,19 @@ Run the wrapper normally:
 agy-safe
 ```
 
+Run Codex with the same pre-flight checks:
+```bash
+codex-safe
+```
+
 Run with arguments passed to the Antigravity CLI:
 ```bash
 agy-safe --task "Fix the build"
+```
+
+Run with arguments passed to the Codex CLI:
+```bash
+codex-safe "Fix the build"
 ```
 
 Use the legacy alias (redirects to `agy-safe`):
@@ -76,15 +87,20 @@ Override secret scan findings to force execution:
 ```bash
 AGY_SAFE_ALLOW_RISK=1 agy-safe
 ```
-*(Alternatively, `GEMINI_SAFE_ALLOW_RISK=1` can be used).*
+For Codex:
+```bash
+CODEX_SAFE_ALLOW_RISK=1 codex-safe
+```
+*(Alternatively, `GEMINI_SAFE_ALLOW_RISK=1` can still be used).*
 
 ## Troubleshooting
 - **`gitleaks is not installed`**: The wrapper will prompt to install it via `brew`. If `brew` is missing, you must install `gitleaks` manually.
-- **`Possible secrets found`**: The wrapper halts execution to help reduce risk. Review the findings from `gitleaks`. If you are certain it's a false positive, you can override using the `AGY_SAFE_ALLOW_RISK=1` environment variable.
+- **`Possible secrets found`**: The wrapper halts execution to help reduce risk. Review the findings from `gitleaks`. If you are certain it's a false positive, you can override using `AGY_SAFE_ALLOW_RISK=1` or `CODEX_SAFE_ALLOW_RISK=1`.
 - **`agy CLI is not installed`**: Ensure the Antigravity CLI is installed and available in your shell's `$PATH`.
+- **`codex CLI is not installed`**: Ensure the Codex CLI is installed and available in your shell's `$PATH`.
 
 ## Updating the Wrapper
-To modify the wrapper, edit the `agy-safe` function in your `~/.zshrc`. 
+To modify the wrapper, edit the safe wrapper functions in your `~/.zshrc`. 
 Always back up `.zshrc` before making changes:
 ```bash
 cp ~/.zshrc ~/.zshrc.backup
