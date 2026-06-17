@@ -70,7 +70,7 @@ codex-safe
 
 Run with arguments passed to the Antigravity CLI:
 ```bash
-agy-safe --task "Fix the build"
+agy-safe --prompt "Fix the build"
 ```
 
 Run with arguments passed to the Codex CLI:

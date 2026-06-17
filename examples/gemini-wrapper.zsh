@@ -143,7 +143,15 @@ _ai_cli_safe() {
   if [ -n "$cli_update_cask" ] && command -v brew >/dev/null 2>&1; then
     echo "🔄 Checking $cli_update_cask updates via brew..."
 
+    local outdated brew_outdated_code
     outdated="$(HOMEBREW_NO_AUTO_UPDATE=1 brew outdated --cask --quiet "$cli_update_cask" 2>/dev/null)"
+    brew_outdated_code=$?
+
+    if [ $brew_outdated_code -ne 0 ]; then
+      echo "⚠️  Could not check $cli_update_cask updates via brew."
+      echo "ℹ️  Continuing without an update check."
+      outdated=""
+    fi
 
     if [ -n "$outdated" ]; then
       echo "⬆️  New $cli_update_cask version available."
@@ -158,7 +166,7 @@ _ai_cli_safe() {
           echo "⏭️  Skipping $cli_update_cask upgrade."
           ;;
       esac
-    else
+    elif [ $brew_outdated_code -eq 0 ]; then
       echo "✅ $cli_update_cask is up to date."
     fi
   elif [ -n "$cli_update_cask" ]; then
