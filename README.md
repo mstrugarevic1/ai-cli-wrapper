@@ -10,7 +10,7 @@ This repository documents and maintains security wrapper functions (`agy-safe` a
 | `zsh` | Yes | Runs the `agy-safe` and `codex-safe` shell functions | Included with macOS |
 | `git` | Yes | Repository context, status and history checks | `brew install git` |
 | `gitleaks` | Yes | Scans the working directory and Git history for potential secrets | `brew install gitleaks` |
-| `brew` | Yes | Installs Gitleaks and checks for CLI updates | Install Homebrew separately |
+| `brew` | Yes | Installs Gitleaks and can be used to check Antigravity CLI updates | Install Homebrew separately |
 | `agy` | Yes | Starts the Antigravity CLI in sandbox mode | Install Antigravity CLI and ensure `agy` is available in `$PATH` |
 | `codex` | Optional | Starts the Codex CLI in sandbox mode | Install Codex CLI and ensure `codex` is available in `$PATH` |
 
@@ -30,22 +30,24 @@ The wrapper is implemented as shell functions named `agy-safe` and `codex-safe` 
 >
 > Secret scanning and sandboxing reduce risk, but they do not replace responsible usage, access controls, secure credential storage, and manual review.
 Before launching the CLI, the wrapper performs the following checks:
-1. **Git Context Check**: Verifies if the current folder is a git repository (`git rev-parse --is-inside-work-tree`). If not, it prompts the user to confirm before proceeding.
-2. **Secret Scan (Working Directory)**: Runs `gitleaks dir . --redact --verbose --timeout 120` to detect exposed secrets in the current directory.
-3. **Secret Scan (Git History)**: Runs `gitleaks git . --redact --verbose --timeout 120` to detect exposed secrets in the repository's commit history.
-4. **CLI Update Check**: Uses `brew outdated` to check if `antigravity-cli` needs an update, prompting the user to upgrade if a newer version is available.
-5. **Context Summary**: Prints the current working directory (`pwd`) and git status (`git status --short`).
-6. **Sandbox Execution**: Launches the CLI using sandbox mode (`agy --sandbox "$@"` or `codex --sandbox workspace-write "$@"`).
+1. **CLI Availability Check**: Verifies that the selected CLI (`agy` or `codex`) is installed and available in `$PATH`.
+2. **Git Context Check**: Verifies if the current folder is a git repository (`git rev-parse --is-inside-work-tree`). If not, it prompts the user to confirm before proceeding.
+3. **Secret Scan (Working Directory)**: Runs `gitleaks dir . --redact --verbose --timeout 120` to detect exposed secrets in the current directory.
+4. **Secret Scan (Git History)**: Runs `gitleaks git . --redact --verbose --timeout 120` to detect exposed secrets in the repository's commit history.
+5. **CLI Update Hint**: For Antigravity, prints the Homebrew command that can be used to check the current cask version.
+6. **Context Summary**: Prints the current working directory (`pwd`) and git status (`git status --short`).
+7. **Sandbox Execution**: Launches the CLI using sandbox mode (`agy --sandbox "$@"` or `codex --sandbox workspace-write "$@"`).
 
 ## How It Works
 
 ```text
 agy-safe / codex-safe
    |
+   +-- Check selected CLI is installed
    +-- Check Git repository context
    +-- Scan the working directory with Gitleaks
    +-- Scan Git history with Gitleaks
-   +-- Check for an Antigravity CLI update when using `agy-safe`
+   +-- Show Antigravity CLI update check command when using `agy-safe`
    +-- Display the current directory and Git status
    +-- Start the selected CLI in sandbox mode
 ```

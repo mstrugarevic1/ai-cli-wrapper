@@ -4,14 +4,14 @@ _ai_cli_safe() {
   local agent_key="$1"
   shift
 
-  local agent_name cli_command cli_update_cask risk_env launch_note
+  local agent_name cli_command cli_update_hint risk_env launch_note
   local -a launch_cmd
 
   case "$agent_key" in
     codex)
       agent_name="Codex"
       cli_command="codex"
-      cli_update_cask=""
+      cli_update_hint=""
       risk_env="CODEX_SAFE_ALLOW_RISK"
       launch_cmd=(codex --sandbox workspace-write)
       launch_note="Codex workspace-write sandbox mode"
@@ -19,7 +19,7 @@ _ai_cli_safe() {
     agy|antigravity)
       agent_name="Antigravity"
       cli_command="agy"
-      cli_update_cask="antigravity-cli"
+      cli_update_hint="brew info --cask antigravity-cli"
       risk_env="AGY_SAFE_ALLOW_RISK"
       launch_cmd=(agy --sandbox)
       launch_note="Antigravity sandbox mode"
@@ -38,7 +38,13 @@ _ai_cli_safe() {
   echo "ℹ️  Goal: reduce accidental exposure of secrets or sensitive files to an AI coding agent."
   echo ""
 
-  # 1. Git repo check
+  # 1. CLI availability check
+  if ! command -v "$cli_command" >/dev/null 2>&1; then
+    echo "🛑 $cli_command CLI is not installed or not in PATH."
+    return 1
+  fi
+
+  # 2. Git repo check
   if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
     echo "⚠️  Current folder is not a git repository."
     printf "❓ Continue anyway? [y/N]: "
@@ -51,7 +57,7 @@ _ai_cli_safe() {
     echo "✅ Git repo: $(git rev-parse --show-toplevel)"
   fi
 
-  # 2. Secret scan with gitleaks
+  # 3. Secret scan with gitleaks
   if ! command -v gitleaks >/dev/null 2>&1; then
     echo "⚠️  gitleaks is not installed."
     printf "❓ Install with brew now? [y/N]: "
@@ -139,41 +145,12 @@ _ai_cli_safe() {
     echo "✅ No secrets found by gitleaks."
   fi
 
-  # 3. Check CLI version via brew when a cask is configured.
-  if [ -n "$cli_update_cask" ] && command -v brew >/dev/null 2>&1; then
-    echo "🔄 Checking $cli_update_cask updates via brew..."
-
-    local outdated brew_outdated_code
-    outdated="$(HOMEBREW_NO_AUTO_UPDATE=1 brew outdated --cask --quiet "$cli_update_cask" 2>/dev/null)"
-    brew_outdated_code=$?
-
-    if [ $brew_outdated_code -ne 0 ]; then
-      echo "⚠️  Could not check $cli_update_cask updates via brew."
-      echo "ℹ️  Continuing without an update check."
-      outdated=""
-    fi
-
-    if [ -n "$outdated" ]; then
-      echo "⬆️  New $cli_update_cask version available."
-      printf "❓ Upgrade $cli_update_cask now? [y/N]: "
-      read -r answer
-      case "$answer" in
-        y|Y|yes|YES)
-          echo "📦 Upgrading $cli_update_cask..."
-          HOMEBREW_NO_AUTO_UPDATE=1 brew upgrade --cask "$cli_update_cask" || return 1
-          ;;
-        *)
-          echo "⏭️  Skipping $cli_update_cask upgrade."
-          ;;
-      esac
-    elif [ $brew_outdated_code -eq 0 ]; then
-      echo "✅ $cli_update_cask is up to date."
-    fi
-  elif [ -n "$cli_update_cask" ]; then
-    echo "⚠️  brew not found, skipping $cli_update_cask update check."
+  # 4. CLI update hint
+  if [ -n "$cli_update_hint" ]; then
+    echo "ℹ️  To check $agent_name CLI updates, run: $cli_update_hint"
   fi
 
-  # 4. Extra safety info
+  # 5. Extra safety info
   echo ""
   echo "📁 Current folder:"
   pwd
@@ -182,12 +159,6 @@ _ai_cli_safe() {
     echo ""
     echo "📌 Git status:"
     git status --short
-  fi
-
-  if ! command -v "$cli_command" >/dev/null 2>&1; then
-    echo ""
-    echo "🛑 $cli_command CLI is not installed or not in PATH."
-    return 1
   fi
 
   echo ""
