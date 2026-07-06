@@ -16,6 +16,14 @@ _ai_cli_safe() {
       launch_cmd=(codex --sandbox workspace-write)
       launch_note="Codex workspace-write sandbox mode"
       ;;
+    claude)
+      agent_name="Claude Code"
+      cli_command="claude"
+      cli_update_hint="brew info --cask claude-code"
+      risk_env="CLAUDE_SAFE_ALLOW_RISK"
+      launch_cmd=(claude --settings '{"sandbox":{"enabled":true,"failIfUnavailable":true}}')
+      launch_note="Claude Code OS-level Bash sandbox (Seatbelt/bubblewrap), writes restricted to the workspace and network blocked until approved"
+      ;;
     agy|antigravity)
       agent_name="Antigravity"
       cli_command="agy"
@@ -95,7 +103,7 @@ _ai_cli_safe() {
     echo "🚨 Possible secrets found in working directory."
     echo "🛑 Review findings before running $agent_name here."
 
-    if [ "${(P)risk_env}" = "1" ] || [ "$AGY_SAFE_ALLOW_RISK" = "1" ] || [ "$GEMINI_SAFE_ALLOW_RISK" = "1" ]; then
+    if [ "${(P)risk_env}" = "1" ] || [ "$AGY_SAFE_ALLOW_RISK" = "1" ] || [ "$GEMINI_SAFE_ALLOW_RISK" = "1" ] || [ "$CODEX_SAFE_ALLOW_RISK" = "1" ] || [ "$CLAUDE_SAFE_ALLOW_RISK" = "1" ]; then
       echo "⚠️  $risk_env=1 is set. Continuing despite findings."
       findings_overridden=1
     else
@@ -124,7 +132,7 @@ _ai_cli_safe() {
       echo "🚨 Possible secrets found in git history."
       echo "🛑 Review findings before running $agent_name here."
 
-      if [ "${(P)risk_env}" = "1" ] || [ "$AGY_SAFE_ALLOW_RISK" = "1" ] || [ "$GEMINI_SAFE_ALLOW_RISK" = "1" ]; then
+      if [ "${(P)risk_env}" = "1" ] || [ "$AGY_SAFE_ALLOW_RISK" = "1" ] || [ "$GEMINI_SAFE_ALLOW_RISK" = "1" ] || [ "$CODEX_SAFE_ALLOW_RISK" = "1" ] || [ "$CLAUDE_SAFE_ALLOW_RISK" = "1" ]; then
         echo "⚠️  $risk_env=1 is set. Continuing despite findings."
         findings_overridden=1
       else
@@ -175,6 +183,10 @@ agy-safe() {
 
 codex-safe() {
   _ai_cli_safe codex "$@"
+}
+
+claude-safe() {
+  _ai_cli_safe claude "$@"
 }
 
 gemini-safe() {
