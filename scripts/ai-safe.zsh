@@ -56,14 +56,14 @@ _ai_safe_gitleaks() {
   print "Running Gitleaks ${label}..."
 
   "$@"
-  local status=$?
+  local scan_status=$?
 
-  if (( status == 0 )); then
+  if (( scan_status == 0 )); then
     return 0
   fi
 
-  if (( status != 3 )); then
-    print -u2 "Gitleaks ${label} failed (exit code ${status})."
+  if (( scan_status != 3 )); then
+    print -u2 "Gitleaks ${label} failed (exit code ${scan_status})."
     return 1
   fi
 
