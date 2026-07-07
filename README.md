@@ -93,19 +93,21 @@ CLAUDE_SAFE_SANDBOX=1 claude-safe
 
 Each wrapper performs these checks before starting the selected CLI:
 
-- verifies the current directory is inside a Git repository
+- checks whether the current directory is inside a Git repository; if not, asks to continue anyway
+- checks whether Gitleaks is installed; if not, offers to install it with `brew`
 - prints the current directory
 - prints `git status --short`
 - scans the working directory with Gitleaks
 - scans Git history with Gitleaks
 - stops on findings unless an explicit override variable is set
+- prints a CLI update hint (Antigravity, Claude) where available
 - starts the selected CLI only after checks pass
 
 Gitleaks commands:
 
 ```zsh
-gitleaks dir . --redact --verbose --timeout 120
-gitleaks git . --redact --verbose --timeout 120
+gitleaks dir . --redact --verbose --timeout 120 --exit-code 3
+gitleaks git . --redact --verbose --timeout 120 --exit-code 3
 ```
 
 Override variables:

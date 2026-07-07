@@ -21,6 +21,32 @@ _ai_safe_require() {
   done
 }
 
+_ai_safe_ensure_gitleaks() {
+  if command -v gitleaks >/dev/null 2>&1; then
+    return 0
+  fi
+
+  print -u2 "gitleaks is not installed."
+  print -n "Install with brew now? [y/N]: "
+  read -r answer
+
+  case "$answer" in
+    y|Y|yes|YES)
+      if ! command -v brew >/dev/null 2>&1; then
+        print -u2 "brew is not installed. Cannot install gitleaks automatically."
+        return 1
+      fi
+
+      print "Installing gitleaks..."
+      HOMEBREW_NO_AUTO_UPDATE=1 brew install gitleaks || return 1
+      ;;
+    *)
+      print -u2 "Aborted. Secret scan is required before starting."
+      return 1
+      ;;
+  esac
+}
+
 _ai_safe_gitleaks() {
   local label="$1"
   local override="$2"
@@ -34,6 +60,11 @@ _ai_safe_gitleaks() {
 
   if (( status == 0 )); then
     return 0
+  fi
+
+  if (( status != 3 )); then
+    print -u2 "Gitleaks ${label} failed (exit code ${status})."
+    return 1
   fi
 
   if _ai_safe_has_override "$override"; then
@@ -50,12 +81,20 @@ _ai_safe_gitleaks() {
 _ai_safe_preflight() {
   local cli="$1"
   local override="$2"
+  local update_hint="$3"
 
-  _ai_safe_require git gitleaks "$cli" || return 1
+  _ai_safe_require git "$cli" || return 1
+  _ai_safe_ensure_gitleaks || return 1
 
   if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-    print -u2 "This directory is not inside a git repository. Refusing to start."
-    return 1
+    print -u2 "This directory is not inside a git repository."
+    print -n "Continue anyway? [y/N]: "
+    read -r answer
+
+    case "$answer" in
+      y|Y|yes|YES) ;;
+      *) print -u2 "Aborted."; return 1 ;;
+    esac
   fi
 
   print "Directory: $PWD"
@@ -65,12 +104,16 @@ _ai_safe_preflight() {
   _ai_safe_gitleaks \
     "working directory scan" \
     "$override" \
-    gitleaks dir . --redact --verbose --timeout 120 || return 1
+    gitleaks dir . --redact --verbose --timeout 120 --exit-code 3 || return 1
 
   _ai_safe_gitleaks \
     "git history scan" \
     "$override" \
-    gitleaks git . --redact --verbose --timeout 120 || return 1
+    gitleaks git . --redact --verbose --timeout 120 --exit-code 3 || return 1
+
+  if [[ -n "$update_hint" ]]; then
+    print "To check for $cli CLI updates, run: $update_hint"
+  fi
 }
 
 _ai_safe_claude() {
@@ -92,7 +135,7 @@ _ai_safe_claude() {
 }
 
 agy-safe() {
-  _ai_safe_preflight agy AGY_SAFE_ALLOW_RISK || return 1
+  _ai_safe_preflight agy AGY_SAFE_ALLOW_RISK "brew info --cask antigravity-cli" || return 1
 
   agy --sandbox "$@"
 }
@@ -113,7 +156,7 @@ codex-safe() {
 }
 
 claude-safe() {
-  _ai_safe_preflight claude CLAUDE_SAFE_ALLOW_RISK || return 1
+  _ai_safe_preflight claude CLAUDE_SAFE_ALLOW_RISK "brew info --cask claude-code" || return 1
 
   _ai_safe_claude "$@"
 }
