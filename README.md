@@ -1,6 +1,12 @@
 # AI CLI Wrapper
 
-Reusable shell wrapper functions for starting AI coding CLIs after local safety checks.
+Shell wrappers that run local safety checks before starting AI coding CLIs (Antigravity / Gemini, Codex, Claude).
+
+AI coding agents read files in the current repository and can send their contents to external services. If the repository contains secrets — API keys, tokens, credentials in config files or in old commits — those can leak. Agents can also execute commands with broad permissions in the wrong directory.
+
+These wrappers reduce that risk before the CLI starts. They scan the working tree and full git history for secrets with Gitleaks and refuse to start on findings, print the directory and git status so a wrong location is visible up front, and launch each CLI in its sandbox or default-permission mode where supported.
+
+The checks run locally and add a few seconds per start. They are a guardrail, not a security boundary; see Limitations.
 
 The implementation lives in `scripts/ai-safe.zsh` (zsh) and `scripts/ai-safe.bash` (bash).
 
