@@ -1,8 +1,8 @@
 # AI CLI Wrapper
 
-Reusable `zsh` wrapper functions for starting AI coding CLIs after local safety checks.
+Reusable shell wrapper functions for starting AI coding CLIs after local safety checks.
 
-The implementation lives in `scripts/ai-safe.zsh`.
+The implementation lives in `scripts/ai-safe.zsh` (zsh) and `scripts/ai-safe.bash` (bash).
 
 Supported wrappers:
 
@@ -53,6 +53,26 @@ and adds this line to `~/.zshrc` if it is not already present:
 ```zsh
 source ~/.config/ai-cli-wrapper/scripts/ai-safe.zsh
 ```
+
+### Bash
+
+The installer only sets up zsh. For bash, copy the script and source it from `~/.bashrc` manually. Skip the clone if the repository is already checked out:
+
+```bash
+git clone https://github.com/mstrugarevic1/ai-cli-wrapper.git ~/.config/ai-cli-wrapper-source
+mkdir -p ~/.config/ai-cli-wrapper/scripts
+cp ~/.config/ai-cli-wrapper-source/scripts/ai-safe.bash ~/.config/ai-cli-wrapper/scripts/ai-safe.bash
+grep -Fxq 'source ~/.config/ai-cli-wrapper/scripts/ai-safe.bash' ~/.bashrc \
+  || echo 'source ~/.config/ai-cli-wrapper/scripts/ai-safe.bash' >> ~/.bashrc
+```
+
+Reload your shell configuration:
+
+```bash
+source ~/.bashrc
+```
+
+On macOS, Terminal starts bash as a login shell, which reads `~/.bash_profile` instead of `~/.bashrc`. Either add the source line to `~/.bash_profile`, or make `~/.bash_profile` source `~/.bashrc`.
 
 ## Usage
 
@@ -125,7 +145,7 @@ Use overrides only when you have reviewed the findings and accepted the risk.
 
 | Tool | Required for | Purpose |
 |---|---|---|
-| zsh | all wrappers | shell runtime |
+| zsh or bash | all wrappers | shell runtime |
 | git | all wrappers | repository checks |
 | gitleaks | all wrappers | secret scanning |
 | agy | `agy-safe` / `gemini-safe` | Antigravity / Gemini CLI |
@@ -170,6 +190,7 @@ Run:
 
 ```zsh
 zsh -n scripts/ai-safe.zsh
+bash -n scripts/ai-safe.bash
 zsh -n install.sh
 make lint
 ```
