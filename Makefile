@@ -1,4 +1,8 @@
 lint:
 	zsh -n scripts/ai-safe.zsh
 	bash -n scripts/ai-safe.bash
-	zsh -n install.sh
+	bash -n install.sh
+
+update:
+	git pull
+	./install.sh

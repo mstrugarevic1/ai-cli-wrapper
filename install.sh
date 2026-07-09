@@ -1,32 +1,92 @@
-#!/usr/bin/env zsh
+#!/usr/bin/env bash
+#
+# Installer for the AI CLI safety wrappers.
+#
+# What it does:
+#   - copies scripts/ai-safe.<shell> to ~/.config/ai-cli-wrapper/scripts/
+#   - adds a "source" line for it to your shell rc file if not already present
+#   - backs up the rc file to <rc>.ai-cli-wrapper.backup before the first change
+#
+# Usage:
+#   ./install.sh            install for the shell detected from $SHELL
+#   ./install.sh zsh        install for zsh only (~/.zshrc)
+#   ./install.sh bash       install for bash only (~/.bashrc)
+#   ./install.sh both       install for zsh and bash
+#
+# Disclaimer:
+#   This software is provided "as is", without warranty of any kind. You run it
+#   at your own risk. The authors are not liable for any damage, data loss, or
+#   leaked secrets resulting from its use.
 
 set -e
 
 target_dir="$HOME/.config/ai-cli-wrapper"
-target_script="$target_dir/scripts/ai-safe.zsh"
-source_line='source ~/.config/ai-cli-wrapper/scripts/ai-safe.zsh'
-zshrc="$HOME/.zshrc"
-backup="$HOME/.zshrc.ai-cli-wrapper.backup"
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-script_dir="${0:A:h}"
-source_script="$script_dir/scripts/ai-safe.zsh"
+install_for_shell() {
+  shell="$1"
 
-if [[ ! -f "$source_script" ]]; then
-  print -u2 "Cannot find source script: $source_script"
-  exit 1
-fi
+  case "$shell" in
+    zsh)  rc="$HOME/.zshrc" ;;
+    bash) rc="$HOME/.bashrc" ;;
+    *)
+      printf 'Unknown shell: %s\n' "$shell" >&2
+      return 1
+      ;;
+  esac
 
-mkdir -p "$target_dir/scripts"
+  source_script="$script_dir/scripts/ai-safe.$shell"
+  target_script="$target_dir/scripts/ai-safe.$shell"
+  source_line="source ~/.config/ai-cli-wrapper/scripts/ai-safe.$shell"
+  backup="$rc.ai-cli-wrapper.backup"
 
-cp "$source_script" "$target_script"
+  if [ ! -f "$source_script" ]; then
+    printf 'Cannot find source script: %s\n' "$source_script" >&2
+    return 1
+  fi
 
-touch "$zshrc"
+  mkdir -p "$target_dir/scripts"
+  cp "$source_script" "$target_script"
 
-if ! grep -Fxq "$source_line" "$zshrc"; then
-  cp "$zshrc" "$backup"
-  printf '\n%s\n' "$source_line" >> "$zshrc"
-fi
+  touch "$rc"
 
-print "Installed ai-safe wrapper to: $target_script"
-print "Run: source ~/.zshrc"
-print "Then use: agy-safe, gemini-safe, codex-safe, claude-safe"
+  if ! grep -Fxq "$source_line" "$rc"; then
+    cp "$rc" "$backup"
+    printf '\n%s\n' "$source_line" >> "$rc"
+  fi
+
+  printf 'Installed ai-safe wrapper (%s) to: %s\n' "$shell" "$target_script"
+  printf 'Run: source %s\n' "$rc"
+}
+
+detect_shell() {
+  case "$(basename "${SHELL:-}")" in
+    zsh)  printf 'zsh' ;;
+    bash) printf 'bash' ;;
+    *)    printf '' ;;
+  esac
+}
+
+case "${1:-}" in
+  zsh|bash)
+    install_for_shell "$1"
+    ;;
+  both)
+    install_for_shell zsh
+    install_for_shell bash
+    ;;
+  "")
+    detected="$(detect_shell)"
+    if [ -z "$detected" ]; then
+      printf 'Could not detect shell from $SHELL. Run: ./install.sh zsh|bash|both\n' >&2
+      exit 1
+    fi
+    install_for_shell "$detected"
+    ;;
+  *)
+    printf 'Usage: ./install.sh [zsh|bash|both]\n' >&2
+    exit 1
+    ;;
+esac
+
+printf 'Then use: agy-safe, gemini-safe, codex-safe, claude-safe\n'
