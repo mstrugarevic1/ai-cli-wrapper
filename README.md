@@ -48,28 +48,36 @@ Reload your shell configuration:
 source ~/.zshrc
 ```
 
-The installer copies `scripts/ai-safe.zsh` to:
-
-```text
-~/.config/ai-cli-wrapper/scripts/ai-safe.zsh
-```
-
-and adds this line to `~/.zshrc` if it is not already present:
+By default the installer detects your shell from `$SHELL`. You can select the
+target explicitly:
 
 ```zsh
-source ~/.config/ai-cli-wrapper/scripts/ai-safe.zsh
+./install.sh zsh    # ~/.zshrc only
+./install.sh bash   # ~/.bashrc only
+./install.sh both   # both shells
 ```
+
+For the selected shell it copies `scripts/ai-safe.<shell>` to:
+
+```text
+~/.config/ai-cli-wrapper/scripts/ai-safe.<shell>
+```
+
+and adds this line to the shell rc file (`~/.zshrc` or `~/.bashrc`) if it is not
+already present:
+
+```zsh
+source ~/.config/ai-cli-wrapper/scripts/ai-safe.<shell>
+```
+
+The rc file is backed up to `<rc>.ai-cli-wrapper.backup` before the first change.
 
 ### Bash
 
-The installer only sets up zsh. For bash, copy the script and source it from `~/.bashrc` manually. Skip the clone if the repository is already checked out:
+Install for bash with:
 
 ```bash
-git clone https://github.com/mstrugarevic1/ai-cli-wrapper.git ~/.config/ai-cli-wrapper-source
-mkdir -p ~/.config/ai-cli-wrapper/scripts
-cp ~/.config/ai-cli-wrapper-source/scripts/ai-safe.bash ~/.config/ai-cli-wrapper/scripts/ai-safe.bash
-grep -Fxq 'source ~/.config/ai-cli-wrapper/scripts/ai-safe.bash' ~/.bashrc \
-  || echo 'source ~/.config/ai-cli-wrapper/scripts/ai-safe.bash' >> ~/.bashrc
+./install.sh bash
 ```
 
 Reload your shell configuration:
@@ -79,6 +87,19 @@ source ~/.bashrc
 ```
 
 On macOS, Terminal starts bash as a login shell, which reads `~/.bash_profile` instead of `~/.bashrc`. Either add the source line to `~/.bash_profile`, or make `~/.bash_profile` source `~/.bashrc`.
+
+## Updating
+
+Pull the latest source and re-run the installer. The installer is idempotent:
+it overwrites the copied script and leaves the rc line unchanged if already present.
+
+```zsh
+cd ~/.config/ai-cli-wrapper-source
+make update
+```
+
+`make update` runs `git pull` and re-runs `./install.sh` for the detected shell.
+To update both shells, run `./install.sh both` after pulling.
 
 ## Usage
 
@@ -190,6 +211,10 @@ Users still need to review files, permissions, prompts, and tool output.
 
 Do not run AI coding tools inside repositories containing real secrets.
 
+## Disclaimer
+
+This software is provided "as is", without warranty of any kind. You run it at your own risk. The authors are not liable for any damage, data loss, or leaked secrets resulting from its use.
+
 ## Validation
 
 Run:
@@ -197,6 +222,6 @@ Run:
 ```zsh
 zsh -n scripts/ai-safe.zsh
 bash -n scripts/ai-safe.bash
-zsh -n install.sh
+bash -n install.sh
 make lint
 ```
