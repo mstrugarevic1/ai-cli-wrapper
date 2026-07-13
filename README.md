@@ -13,6 +13,8 @@ something, the AI CLI does not start unless you explicitly override it.
 This is a local guardrail for catching common mistakes before an AI tool reads
 the repository.
 
+![Mock codex-safe startup output](assets/codex-safe-startup.png)
+
 Supported commands:
 
 ```zsh
