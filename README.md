@@ -8,7 +8,7 @@ These wrappers reduce that risk before the CLI starts. They scan the working tre
 
 The checks run locally and add a few seconds per start. They are a guardrail, not a security boundary; see Limitations.
 
-The implementation lives in `scripts/ai-safe.zsh` (zsh) and `scripts/ai-safe.bash` (bash).
+The shared bash/zsh implementation lives in `scripts/ai-safe.sh`.
 
 Supported wrappers:
 
@@ -57,17 +57,17 @@ target explicitly:
 ./install.sh both   # both shells
 ```
 
-For the selected shell it copies `scripts/ai-safe.<shell>` to:
+For the selected shell it copies `scripts/ai-safe.sh` to:
 
 ```text
-~/.config/ai-cli-wrapper/scripts/ai-safe.<shell>
+~/.config/ai-cli-wrapper/scripts/ai-safe.sh
 ```
 
 and adds this line to the shell rc file (`~/.zshrc` or `~/.bashrc`) if it is not
 already present:
 
 ```zsh
-source ~/.config/ai-cli-wrapper/scripts/ai-safe.<shell>
+source ~/.config/ai-cli-wrapper/scripts/ai-safe.sh
 ```
 
 The rc file is backed up to `<rc>.ai-cli-wrapper.backup` before the first change.
@@ -140,7 +140,7 @@ CLAUDE_SAFE_SANDBOX=1 claude-safe
 
 Each wrapper performs these checks before starting the selected CLI:
 
-- checks whether the current directory is inside a Git repository; if not, asks to continue anyway
+- stops unless the current directory is inside a Git repository
 - checks whether Gitleaks is installed; if not, offers to install it with `brew`
 - prints the current directory
 - prints `git status --short`
@@ -153,8 +153,8 @@ Each wrapper performs these checks before starting the selected CLI:
 Gitleaks commands:
 
 ```zsh
-gitleaks dir . --redact --verbose --timeout 120 --exit-code 3
-gitleaks git . --redact --verbose --timeout 120 --exit-code 3
+gitleaks dir "$(git rev-parse --show-toplevel)" --redact --verbose --timeout 120 --exit-code 3
+gitleaks git "$(git rev-parse --show-toplevel)" --redact --verbose --timeout 120 --exit-code 3
 ```
 
 Override variables:
@@ -220,8 +220,8 @@ This software is provided "as is", without warranty of any kind. You run it at y
 Run:
 
 ```zsh
-zsh -n scripts/ai-safe.zsh
-bash -n scripts/ai-safe.bash
+zsh -n scripts/ai-safe.sh
+bash -n scripts/ai-safe.sh
 bash -n install.sh
 make lint
 ```

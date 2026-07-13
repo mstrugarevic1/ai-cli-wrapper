@@ -3,7 +3,7 @@
 # Installer for the AI CLI safety wrappers.
 #
 # What it does:
-#   - copies scripts/ai-safe.<shell> to ~/.config/ai-cli-wrapper/scripts/
+#   - copies scripts/ai-safe.sh to ~/.config/ai-cli-wrapper/scripts/
 #   - adds a "source" line for it to your shell rc file if not already present
 #   - backs up the rc file to <rc>.ai-cli-wrapper.backup before the first change
 #
@@ -24,7 +24,8 @@ target_dir="$HOME/.config/ai-cli-wrapper"
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 install_for_shell() {
-  shell="$1"
+  local shell="$1"
+  local rc source_script target_script source_line legacy_source_line backup tmp
 
   case "$shell" in
     zsh)  rc="$HOME/.zshrc" ;;
@@ -35,9 +36,10 @@ install_for_shell() {
       ;;
   esac
 
-  source_script="$script_dir/scripts/ai-safe.$shell"
-  target_script="$target_dir/scripts/ai-safe.$shell"
-  source_line="source ~/.config/ai-cli-wrapper/scripts/ai-safe.$shell"
+  source_script="$script_dir/scripts/ai-safe.sh"
+  target_script="$target_dir/scripts/ai-safe.sh"
+  source_line="source ~/.config/ai-cli-wrapper/scripts/ai-safe.sh"
+  legacy_source_line="source ~/.config/ai-cli-wrapper/scripts/ai-safe.$shell"
   backup="$rc.ai-cli-wrapper.backup"
 
   if [ ! -f "$source_script" ]; then
@@ -47,12 +49,19 @@ install_for_shell() {
 
   mkdir -p "$target_dir/scripts"
   cp "$source_script" "$target_script"
+  rm -f "$target_dir/scripts/ai-safe.$shell"
 
   touch "$rc"
 
-  if ! grep -Fxq "$source_line" "$rc"; then
+  if grep -Fxq "$legacy_source_line" "$rc" || ! grep -Fxq "$source_line" "$rc"; then
     cp "$rc" "$backup"
-    printf '\n%s\n' "$source_line" >> "$rc"
+    tmp="$(mktemp)"
+    grep -Fvx "$legacy_source_line" "$rc" > "$tmp" || true
+    if ! grep -Fxq "$source_line" "$tmp"; then
+      printf '\n%s\n' "$source_line" >> "$tmp"
+    fi
+    cat "$tmp" > "$rc"
+    rm -f "$tmp"
   fi
 
   printf 'Installed ai-safe wrapper (%s) to: %s\n' "$shell" "$target_script"
@@ -78,7 +87,7 @@ case "${1:-}" in
   "")
     detected="$(detect_shell)"
     if [ -z "$detected" ]; then
-      printf 'Could not detect shell from $SHELL. Run: ./install.sh zsh|bash|both\n' >&2
+      printf "Could not detect shell from \$SHELL. Run: ./install.sh zsh|bash|both\n" >&2
       exit 1
     fi
     install_for_shell "$detected"
