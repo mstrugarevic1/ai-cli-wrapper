@@ -1,6 +1,6 @@
 # AI CLI Wrapper
 
-[![checks](https://github.com/mstrugarevic1/ai-cli-wrapper/actions/workflows/checks.yml/badge.svg?branch=main)](https://github.com/mstrugarevic1/ai-cli-wrapper/actions/workflows/checks.yml)
+[![checks](https://github.com/mstrugarevic1/ai-cli-wrapper/actions/workflows/checks.yml/badge.svg?branch=main&event=push)](https://github.com/mstrugarevic1/ai-cli-wrapper/actions/workflows/checks.yml)
 
 Small shell wrappers for people who run AI coding tools directly inside Git
 repositories and want the same safety check every time.
@@ -10,9 +10,8 @@ sure you are in a Git repository, shows the directory and current Git state, and
 runs Gitleaks against both the working tree and Git history. If Gitleaks finds
 something, the AI CLI does not start unless you explicitly override it.
 
-This is a local guardrail, not a security boundary. It helps catch common
-mistakes before an AI tool reads the repository, but it does not make a repo
-with real secrets safe to use.
+This is a local guardrail for catching common mistakes before an AI tool reads
+the repository.
 
 Supported commands:
 
@@ -115,3 +114,9 @@ rm -rf ~/.config/ai-cli-wrapper
 ```zsh
 make lint
 ```
+
+## Disclaimer
+
+Use this at your own risk. This wrapper is not a security boundary, Gitleaks can
+miss secrets, and CLI sandbox behavior depends on the installed CLI version. Do
+not run AI coding tools inside repositories that contain real secrets.
