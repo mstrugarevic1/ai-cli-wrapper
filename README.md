@@ -1,33 +1,25 @@
 # AI CLI Wrapper
 
-Shell wrappers that run local safety checks before starting AI coding CLIs (Antigravity / Gemini, Codex, Claude).
+Shell wrappers that run local safety checks before starting AI coding CLIs:
+Antigravity / Gemini, Codex, and Claude.
 
-AI coding agents read files in the current repository and can send their contents to external services. If the repository contains secrets — API keys, tokens, credentials in config files or in old commits — those can leak. Agents can also execute commands with broad permissions in the wrong directory.
-
-These wrappers reduce that risk before the CLI starts. They scan the working tree and full git history for secrets with Gitleaks and refuse to start on findings, print the directory and git status so a wrong location is visible up front, and launch each CLI in its sandbox or default-permission mode where supported.
-
-The checks run locally and add a few seconds per start. They are a guardrail, not a security boundary; see Limitations.
+The wrappers scan the current Git repository for secrets with Gitleaks, show the
+working directory and Git status before launch, and start each CLI with the
+sandbox or default permission mode supported by that CLI. They are a guardrail,
+not a security boundary.
 
 The shared bash/zsh implementation lives in `scripts/ai-safe.sh`.
 
-Supported wrappers:
+## Wrappers
 
 - `agy-safe`
 - `gemini-safe`
 - `codex-safe`
 - `claude-safe`
 
-## What it does
+`gemini-safe` is a legacy alias that delegates to `agy-safe`.
 
-The wrapper runs a small set of local checks before starting the selected AI CLI.
-
-It checks that the current directory is a Git repository, prints the current directory and Git status, scans the working tree and Git history with Gitleaks, and only then starts the requested CLI.
-
-Antigravity and Codex are started in sandbox mode where supported by their CLIs.
-
-Claude is started without bypassing normal permission prompts. Optional Claude sandbox mode can be requested with `CLAUDE_SAFE_SANDBOX=1` when supported by the installed Claude CLI.
-
-## Installation
+## Install
 
 Clone the repository:
 
@@ -48,114 +40,83 @@ Reload your shell configuration:
 source ~/.zshrc
 ```
 
-By default the installer detects your shell from `$SHELL`. You can select the
-target explicitly:
+The installer detects your shell from `$SHELL`. You can also choose explicitly:
 
 ```zsh
-./install.sh zsh    # ~/.zshrc only
-./install.sh bash   # ~/.bashrc only
-./install.sh both   # both shells
+./install.sh zsh
+./install.sh bash
+./install.sh both
 ```
 
-For the selected shell it copies `scripts/ai-safe.sh` to:
+It copies `scripts/ai-safe.sh` to:
 
 ```text
 ~/.config/ai-cli-wrapper/scripts/ai-safe.sh
 ```
 
-and adds this line to the shell rc file (`~/.zshrc` or `~/.bashrc`) if it is not
-already present:
+Then it adds this line to `~/.zshrc` or `~/.bashrc` if it is missing:
 
 ```zsh
 source ~/.config/ai-cli-wrapper/scripts/ai-safe.sh
 ```
 
-The rc file is backed up to `<rc>.ai-cli-wrapper.backup` before the first change.
+Before changing the rc file, the installer writes a backup at
+`<rc>.ai-cli-wrapper.backup`.
 
-### Bash
-
-Install for bash with:
-
-```bash
-./install.sh bash
-```
-
-Reload your shell configuration:
-
-```bash
-source ~/.bashrc
-```
-
-On macOS, Terminal starts bash as a login shell, which reads `~/.bash_profile` instead of `~/.bashrc`. Either add the source line to `~/.bash_profile`, or make `~/.bash_profile` source `~/.bashrc`.
-
-## Updating
-
-Pull the latest source and re-run the installer. The installer is idempotent:
-it overwrites the copied script and leaves the rc line unchanged if already present.
-
-```zsh
-cd ~/.config/ai-cli-wrapper-source
-make update
-```
-
-`make update` runs `git pull` and re-runs `./install.sh` for the detected shell.
-To update both shells, run `./install.sh both` after pulling.
+On macOS, Terminal may start bash as a login shell and read `~/.bash_profile`
+instead of `~/.bashrc`. In that case, source `~/.bashrc` from
+`~/.bash_profile`, or add the wrapper source line there.
 
 ## Usage
 
-Start Antigravity / Gemini:
-
 ```zsh
 agy-safe
-```
-
-Legacy Gemini alias:
-
-```zsh
 gemini-safe
-```
-
-Start Codex:
-
-```zsh
 codex-safe
-```
-
-Start Claude:
-
-```zsh
 claude-safe
 ```
 
-Examples:
+Arguments are passed through to the underlying CLI:
 
 ```zsh
 agy-safe --prompt "Review this repository"
 codex-safe "Fix failing tests"
 claude-safe
+```
+
+Claude starts with normal permission prompts:
+
+```zsh
+claude --permission-mode default
+```
+
+If your installed Claude CLI supports `--sandbox`, you can request it with:
+
+```zsh
 CLAUDE_SAFE_SANDBOX=1 claude-safe
 ```
 
-## Pre-flight checks
-
-Each wrapper performs these checks before starting the selected CLI:
-
-- stops unless the current directory is inside a Git repository
-- checks whether Gitleaks is installed; if not, offers to install it with `brew`
-- prints the current directory
-- prints `git status --short`
-- scans the working directory with Gitleaks
-- scans Git history with Gitleaks
-- stops on findings unless an explicit override variable is set
-- prints a CLI update hint (Antigravity, Claude) where available
-- starts the selected CLI only after checks pass
-
-Gitleaks commands:
+If sandbox mode is requested but unsupported, the wrapper stops unless this is
+set:
 
 ```zsh
-gitleaks dir "$(git rev-parse --show-toplevel)" --redact --verbose --timeout 120 --exit-code 3
-gitleaks git "$(git rev-parse --show-toplevel)" --redact --verbose --timeout 120 --exit-code 3
+CLAUDE_SAFE_ALLOW_UNSANDBOXED=1
 ```
+
+## Preflight
+
+Before starting a CLI, each wrapper:
+
+- requires the current directory to be inside a Git repository
+- checks that the selected CLI, `git`, and `gitleaks` are available
+- offers `brew install gitleaks` if Gitleaks is missing
+- prints the current directory and `git status --short`
+- scans the repository root with `gitleaks dir`
+- scans Git history with `gitleaks git`
+- blocks on Gitleaks findings unless an explicit override is set
+
+The scans run against `git rev-parse --show-toplevel`, even when the wrapper is
+started from a subdirectory.
 
 Override variables:
 
@@ -166,62 +127,46 @@ CODEX_SAFE_ALLOW_RISK=1
 CLAUDE_SAFE_ALLOW_RISK=1
 ```
 
-Use overrides only when you have reviewed the findings and accepted the risk.
+Use overrides only after reviewing the Gitleaks findings and accepting the risk.
 
 ## Requirements
 
-| Tool | Required for | Purpose |
-|---|---|---|
-| zsh or bash | all wrappers | shell runtime |
-| git | all wrappers | repository checks |
-| gitleaks | all wrappers | secret scanning |
-| agy | `agy-safe` / `gemini-safe` | Antigravity / Gemini CLI |
-| codex | `codex-safe` | Codex CLI |
-| claude | `claude-safe` | Claude CLI |
+Required for all wrappers: `zsh` or `bash`, `git`, and `gitleaks`.
 
-## Claude sandbox mode
+Install the CLI you plan to use: `agy`, `codex`, or `claude`.
 
-`claude-safe` keeps Claude's normal permission prompts.
-
-By default, it runs the shared pre-flight checks and starts Claude with normal permission handling:
+## Update
 
 ```zsh
-claude --permission-mode default
+cd ~/.config/ai-cli-wrapper-source
+make update
 ```
 
-If the installed Claude CLI supports a sandbox flag, this can be requested with:
+`make update` runs `git pull` and `./install.sh` for the shell detected from
+`$SHELL`. To update both shells after pulling, run:
 
 ```zsh
-CLAUDE_SAFE_SANDBOX=1 claude-safe
+./install.sh both
 ```
 
-If sandbox mode is requested but not supported by the installed Claude CLI, the wrapper stops unless this explicit override is set:
+## Validation
 
 ```zsh
-CLAUDE_SAFE_ALLOW_UNSANDBOXED=1
+make lint
 ```
+
+This checks shell syntax for the shared wrapper and installer, then runs the
+preflight test script.
 
 ## Limitations
 
-This wrapper is not a complete security boundary.
-
-Gitleaks can have false positives and false negatives. Sandbox behavior depends on the underlying CLI. Claude sandbox support depends on the installed Claude CLI version.
-
-Users still need to review files, permissions, prompts, and tool output.
+This wrapper is not a complete security boundary. Gitleaks can have false
+positives and false negatives, and sandbox behavior depends on the installed
+CLI version.
 
 Do not run AI coding tools inside repositories containing real secrets.
 
 ## Disclaimer
 
-This software is provided "as is", without warranty of any kind. You run it at your own risk. The authors are not liable for any damage, data loss, or leaked secrets resulting from its use.
-
-## Validation
-
-Run:
-
-```zsh
-zsh -n scripts/ai-safe.sh
-bash -n scripts/ai-safe.sh
-bash -n install.sh
-make lint
-```
+This software is provided "as is", without warranty of any kind. You run it at
+your own risk.
