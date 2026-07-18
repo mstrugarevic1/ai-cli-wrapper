@@ -23,6 +23,18 @@ git rev-parse --show-toplevel
 
 So running a wrapper from a subdirectory still scans the whole repository.
 
+## Non-Git Directories
+
+The wrapper refuses to start outside a Git repository, because AI edits there
+cannot be undone with Git. To run in a throwaway or temporary directory anyway:
+
+```zsh
+AI_SAFE_ALLOW_NO_GIT=1 codex-safe
+```
+
+This still runs the `gitleaks dir` working directory scan, but skips `git status`
+and the `gitleaks git` history scan (there is no history to scan).
+
 ## Findings And Overrides
 
 Gitleaks exits with code `3` when it finds secrets. The wrapper blocks startup in

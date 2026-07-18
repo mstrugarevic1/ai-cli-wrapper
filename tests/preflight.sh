@@ -41,6 +41,14 @@ for shell in bash zsh; do
 
   # Explicit override keeps the wrapper usable for intentional exceptions.
   (cd "$tmp/repo" && PATH="$tmp:$PATH" GITLEAKS_LOG="$log" GITLEAKS_STATUS=3 TEST_OVERRIDE=1 "$shell" -c 'source "$1"; _ai_safe_preflight sh TEST_OVERRIDE "$TEST_OVERRIDE" ""' _ "$repo/scripts/ai-safe.sh")
+
+  # AI_SAFE_ALLOW_NO_GIT runs the working-file scan only, skipping the history scan.
+  : > "$log"
+  (cd "$tmp" && PATH="$tmp:$PATH" GITLEAKS_LOG="$log" AI_SAFE_ALLOW_NO_GIT=1 "$shell" -c 'source "$1"; _ai_safe_preflight sh TEST_OVERRIDE "${TEST_OVERRIDE:-}" ""' _ "$repo/scripts/ai-safe.sh" < /dev/null)
+  printf 'dir|%s\n' "$tmp" | cmp -s - "$log" || {
+    printf '%s preflight did not run a dir-only scan with AI_SAFE_ALLOW_NO_GIT\n' "$shell" >&2
+    exit 1
+  }
 done
 
 # Installer migration must replace old shell-specific wrapper references.

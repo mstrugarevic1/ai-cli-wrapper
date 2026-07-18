@@ -82,26 +82,36 @@ _ai_safe_gitleaks() {
   return 1
 }
 
-# Validates the repository and runs working-tree and history scans before launch.
+# Runs the secret scans before launch. Requires a git repository unless
+# AI_SAFE_ALLOW_NO_GIT is set, in which case only the working directory scan runs.
 _ai_safe_preflight() {
   local cli="$1"
   local override_name="$2"
   local override_value="$3"
   local update_hint="$4"
   local repo_root
+  local no_git=""
 
   _ai_safe_require git "$cli" || return 1
 
   if ! repo_root="$(git rev-parse --show-toplevel 2>/dev/null)"; then
-    printf 'This directory is not inside a git repository.\n' >&2
-    return 1
+    if [[ "${AI_SAFE_ALLOW_NO_GIT:-}" != "1" ]]; then
+      printf 'This directory is not inside a git repository.\n' >&2
+      printf 'Set AI_SAFE_ALLOW_NO_GIT=1 to run here anyway.\n' >&2
+      return 1
+    fi
+    printf 'WARNING: not a git repository. AI edits cannot be undone; only the working directory scan runs.\n' >&2
+    repo_root="$PWD"
+    no_git=1
   fi
 
   _ai_safe_ensure_gitleaks || return 1
 
   printf 'Directory: %s\n' "$PWD"
-  printf 'Git status:\n'
-  git status --short
+  if [[ -z "$no_git" ]]; then
+    printf 'Git status:\n'
+    git status --short
+  fi
 
   _ai_safe_gitleaks \
     "working directory scan" \
@@ -109,11 +119,13 @@ _ai_safe_preflight() {
     "$override_value" \
     gitleaks dir "$repo_root" --redact --verbose --timeout 120 --exit-code 3 || return 1
 
-  _ai_safe_gitleaks \
-    "git history scan" \
-    "$override_name" \
-    "$override_value" \
-    gitleaks git "$repo_root" --redact --verbose --timeout 120 --exit-code 3 || return 1
+  if [[ -z "$no_git" ]]; then
+    _ai_safe_gitleaks \
+      "git history scan" \
+      "$override_name" \
+      "$override_value" \
+      gitleaks git "$repo_root" --redact --verbose --timeout 120 --exit-code 3 || return 1
+  fi
 
   if [[ -n "$update_hint" ]]; then
     printf 'To check for %s CLI updates, run: %s\n' "$cli" "$update_hint"

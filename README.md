@@ -65,7 +65,7 @@ claude-safe
 
 Before the CLI starts, the wrapper:
 
-- requires a Git repository
+- requires a Git repository (override with `AI_SAFE_ALLOW_NO_GIT=1`)
 - prints the current directory and `git status --short`
 - scans the repository root with `gitleaks dir`
 - scans Git history with `gitleaks git`
